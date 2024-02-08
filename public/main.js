@@ -28,13 +28,14 @@ mapboxgl.accessToken =
             new mapboxgl.Marker({
                 color: '#ff0000'
             })
-                .setLngLat([-118.149148, 34.068001])
+                .setLngLat([-118.149148, 34.068001])  //7-11
                 .setPopup(popup) // sets a popup on this marke
                 .addTo(map);
 
             // global variables
             let ruler = false;
             let drone;
+			let drone2;
 
             const distanceContainer = document.getElementById('distance');
 
@@ -115,6 +116,7 @@ mapboxgl.accessToken =
                     type: 'line',
                     source: 'alhambra',
                     paint: {
+						//Adds the color of the line
                         'line-color': [
                             'match',
                             ['get', 'name'],
@@ -124,6 +126,8 @@ mapboxgl.accessToken =
                             '#00ff00',
                             '#ffff00'
                         ],
+						//Makes the width of the line
+						//That's going to surround the church
                         'line-width': [
                             'match',
                             ['get', 'name'],
@@ -174,7 +178,7 @@ mapboxgl.accessToken =
                         // https://sketchfab.com/3d-models/metlife-building-32d3a4a1810a4d64abb9547bb661f7f3
                         const scale = 3.2;
                         const options = {
-                            obj: '../drone/scene.gltf',
+                            obj: '../drone/scene.gltf', //Gets the 3d model of the drone itself
                             type: 'gltf',
                             scale: { x: scale, y: scale, z: 2.7 },
                             units: 'meters',
@@ -194,7 +198,39 @@ mapboxgl.accessToken =
                         tb.update();
                     }
                 });
+				
+				//Adds second drone onto the field
+				//This second drone will act as the detector
+				map.addLayer({
+                    id: 'custom-threebox-model-second',
+                    type: 'custom',
+                    renderingMode: '3d',
+                    onAdd: function () {
+                        // Creative Commons License attribution:  Metlife Building model by https://sketchfab.com/NanoRay
+                        // https://sketchfab.com/3d-models/metlife-building-32d3a4a1810a4d64abb9547bb661f7f3
+                        const scale = 3.2;
+                        const options = {
+                            obj: '../drone/scene.gltf', //Gets the 3d model of the drone itself
+                            type: 'gltf',
+                            scale: { x: scale, y: scale, z: 2.7 },
+                            units: 'meters',
+                            rotation: { x: 90, y: -90, z: 0 }
+                        };
 
+                        tb.loadObj(options, (model) => {
+                            model.setCoords([-118.148592, 34.065868]);
+                            model.setRotation({ x: 0, y: 0, z: 250 });
+                            tb.add(model);
+
+                            drone2 = model;
+                        });
+                    },
+
+                    render: function () {
+                        tb.update();
+                    }
+                });
+				
                 map.addSource('geojson', {
                     type: 'geojson',
                     data: geojson
@@ -225,7 +261,11 @@ mapboxgl.accessToken =
                     },
                     filter: ['in', '$type', 'LineString']
                 });
-
+				
+				var raycaster = new THREE.raycaster();
+				var mouse = new THREE.Vector2();
+				
+				//What happens when the user clicks with their mouse?
                 map.on('click', (e) => {
                     if (ruler) {
                         const features = map.queryRenderedFeatures(e.point, {
