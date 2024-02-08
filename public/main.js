@@ -265,6 +265,26 @@ mapboxgl.accessToken =
 				var raycaster = new THREE.Raycaster();
 				var mouse = new THREE.Vector2();
 				
+				// Assuming you have a Mapbox GL JS map instance
+				map.on('click', function (event) {
+					// Convert mouse coordinates to normalized device coordinates
+					mouse.x = (event.point.x / map.getCanvas().width) * 2 - 1;
+					mouse.y = -(event.point.y / map.getCanvas().height) * 2 + 1;
+
+					console.log(mouse.x, mouse.y)
+					// Set up the raycaster
+					raycaster.setFromCamera(mouse, tb.camera, 0, 50);
+
+					// Check for intersections
+					var intersects = raycaster.intersectObject(drone2, true); // Assuming 'drone2' is your 3D model
+					//var intersects = raycaster.intersectObject(drone2);
+
+					if (intersects.length > 0) {
+						// Intersection detected, perform actions
+						console.log('Intersection with 3D model:', intersects[0]);
+					}
+				});
+				
 				//What happens when the user clicks with their mouse?
                 map.on('click', (e) => {
                     if (ruler) {
