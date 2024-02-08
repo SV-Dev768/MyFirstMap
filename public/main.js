@@ -262,7 +262,7 @@ mapboxgl.accessToken =
                     filter: ['in', '$type', 'LineString']
                 });
 				
-				var raycaster = new THREE.raycaster();
+				var raycaster = new THREE.Raycaster();
 				var mouse = new THREE.Vector2();
 				
 				//What happens when the user clicks with their mouse?
