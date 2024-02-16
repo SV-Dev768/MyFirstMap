@@ -12,7 +12,11 @@ const map = new mapboxgl.Map({
 
 // eslint-disable-next-line no-undef
 const tb = (window.tb = new Threebox(map, map.getCanvas().getContext('webgl'), {
-    defaultLights: true
+    defaultLights: true,
+    enableSelectingObjects: true,
+    enableDraggingObjects: true,
+    enableRotatingObjects: true,
+    enableTooltips: true
 }));
 
 // create the popup
@@ -29,12 +33,15 @@ new mapboxgl.Marker({
 // global variables
 let ruler = false;
 let drone;
+let drone_box;
 let uas;
+let uas_box;
 let altitude = 0;
 let droneX = -118.148512;
 let droneY = 34.065868;
 let uasX = -118.148746;
 let uasY = 34.066381;
+let blocker;
 
 const distanceContainer = document.getElementById('distance');
 
@@ -60,7 +67,8 @@ map.on('style.load', () => {
     const labelLayerId = layers.find(
         (layer) => layer.type === 'symbol' && layer.layout['text-field']
     ).id;
-
+    
+    
     // The 'building' layer in the Mapbox Streets
     // vector tileset contains building height data
     // from OpenStreetMap.
@@ -183,7 +191,9 @@ map.on('style.load', () => {
 
             tb.loadObj(options, (model) => {
                 model.setCoords([droneX, droneY, altitude]);
-                model.setRotation({ x: 0, y: 0, z: 250 });
+                model.setRotation({ x: 0, y: 0, z: 0 });
+                model.addEventListener('SelectedChange', onSelectedChange, false);
+
                 tb.add(model);
 
                 drone = model;
@@ -203,12 +213,12 @@ map.on('style.load', () => {
         onAdd: function () {
             // Creative Commons License attribution:  Metlife Building model by https://sketchfab.com/NanoRay
             // https://sketchfab.com/3d-models/metlife-building-32d3a4a1810a4d64abb9547bb661f7f3
-            const scale = 3.2;
+            const scale = 10;
             let altitude = 0;
             const options = {
                 obj: '../drone/scene.gltf',
                 type: 'gltf',
-                scale: { x: scale, y: scale, z: 2.7 },
+                scale: { x: scale, y: scale, z: 10 },
                 units: 'meters',
                 rotation: { x: 90, y: -90, z: 0 }
             };
@@ -216,20 +226,11 @@ map.on('style.load', () => {
             tb.loadObj(options, (model) => {
                 model.setCoords([uasX, uasY, altitude]);
                 model.setRotation({ x: 0, y: 0, z: 250 });
+
+                model.addEventListener('SelectedChange', onSelectedChange, false);
                 tb.add(model);
 
                 uas = model;
-
-                // Raycasting
-                // const raycaster = new THREE.Raycaster();
-                // const origin = new THREE.Vector3(droneX, droneY, altitude);
-                // const destination = new THREE.Vector3(uasX, uasY, altitude);
-
-                // destination.sub(origin).normalize();
-
-                // set the raycaster properties
-                // raycaster.set(origin, destination);
-                // const intersections = raycaster.intersectObject(uas, true);
             });
         },
 
@@ -237,6 +238,43 @@ map.on('style.load', () => {
             tb.update();
         }
     });
+
+
+    // blocker drone
+    map.addLayer({
+        id: 'blocker',
+        type: 'custom',
+        renderingMode: '3d',
+        onAdd: function () {
+            // Creative Commons License attribution:  Metlife Building model by https://sketchfab.com/NanoRay
+            // https://sketchfab.com/3d-models/metlife-building-32d3a4a1810a4d64abb9547bb661f7f3
+            const scale = 30;
+            let altitude = 0;
+            const options = {
+                obj: '../drone/scene.gltf',
+                type: 'gltf',
+                scale: { x: scale, y: scale, z: scale },
+                units: 'meters',
+                rotation: { x: 90, y: -90, z: 0 }
+            };
+
+            tb.loadObj(options, (model) => {
+                model.setCoords([-118.14875, 34.06628, altitude]);
+                model.setRotation({ x: 0, y: 0, z: 250 });
+
+                model.addEventListener('SelectedChange', onSelectedChange, false);
+                tb.add(model);
+
+                blocker = model;
+            });
+        },
+
+        render: function () {
+            tb.update();
+        }
+    });
+
+
     map.addSource('geojson', {
         type: 'geojson',
         data: geojson
@@ -267,6 +305,46 @@ map.on('style.load', () => {
         },
         filter: ['in', '$type', 'LineString']
     });
+
+
+    function onSelectedChange(e) {
+        let selectedObject = e.detail; //we get the object selected/unselected
+        // console.log(selectedObject)
+       
+        let selectedValue = selectedObject.selected; //we get if the object is selected after the event
+        console.log(selectedValue);
+
+        let bbox_uas = new THREE.Box3().setFromObject(uas);
+        uas_box = bbox_uas;
+        console.log('counter_uas', uas_box);
+
+        let bbox_drone = new THREE.Box3().setFromObject(drone);
+        drone_box = bbox_drone;
+        console.log('drone', drone_box);
+
+        let bbox_blocker = new THREE.Box3().setFromObject(blocker);
+        blocker_box = bbox_blocker;
+        console.log('blocker', blocker_box);
+
+        const uas_center = new THREE.Vector3();
+        uas_box.getCenter(uas_center);
+
+        const drone_center = new THREE.Vector3();
+        drone_box.getCenter(drone_center);
+       
+        console.log("Center of UAS bounding box:", uas_center);
+        console.log("Center of drone bounding box:", drone_center);
+
+        // Create a ray from box1 center to box2 center
+        const direction = new THREE.Vector3().subVectors(drone_center, uas_center).normalize();
+        const ray = new THREE.Ray(uas_center, direction);
+
+        const intersect_vector = new THREE.Vector3();
+        // Check for intersections with box2
+        const intersects = ray.intersectBox(drone_box, intersect_vector);
+        console.log('the intersection', intersects)
+        
+    }
 
     map.on('click', (e) => {
         if (ruler) {
@@ -334,29 +412,32 @@ map.on('style.load', () => {
         }
     });
 
-    // test
     // Create a raycaster
     var raycaster = new THREE.Raycaster();
+    raycaster.near = 1;
+    raycaster.far = 1;
+
+    raycaster.near = tb.camera.near;
+    raycaster.far = tb.camera.far;
+
     var mouse = new THREE.Vector2();
 
-    // Assuming you have a Mapbox GL JS map instance
     map.on('click', function (event) {
         // Convert mouse coordinates to normalized device coordinates
         mouse.x = (event.point.x / map.getCanvas().width) * 2 - 1;
         mouse.y = -(event.point.y / map.getCanvas().height) * 2 + 1;
 
-        console.log(mouse.x, mouse.y)
+        console.log(mouse.x, mouse.y);
         // Set up the raycaster
-        raycaster.setFromCamera(mouse, tb.camera, 0, 50);
+        raycaster.setFromCamera(mouse, tb.camera);
 
+   
         // Check for intersections
-        var intersects = raycaster.intersectObject(uas, true); // Assuming 'uas' is your 3D model
-        //var intersects = raycaster.intersectObject(uas);
-
-        if (intersects.length > 0) {
-            // Intersection detected, perform actions
-            console.log('Intersection with 3D model:', intersects[0]);
-        }
+        // let intersects = raycaster.intersectsBox(uas_box);
+        // if (intersects.length > 0) {
+        //     // Intersection detected, perform actions
+        //     console.log('Intersection with 3D model:', intersects[0]);
+        // }
     });
 });
 
