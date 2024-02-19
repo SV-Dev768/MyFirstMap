@@ -1,5 +1,6 @@
 mapboxgl.accessToken =
     'pk.eyJ1IjoibG92ZWRvY3RvcjM2OSIsImEiOiJjbHI1eDBhamkwM2NpMnFvczd2ODIyN2QzIn0.IJsSWOjDJyqyv2McyXizag';
+	
 // instantiates a new map
 const map = new mapboxgl.Map({
     container: 'map',
@@ -42,6 +43,14 @@ let droneY = 34.065868;
 let uasX = -118.148746;
 let uasY = 34.066381;
 let blocker;
+
+//Dragable contents to ensure the drone can be dragged
+let dragableObjects = [uas, drone];
+//const renderer = new THREE.WebGLRenderer();
+//renderer.setSize(window.innerWidth, window.innerHeight);
+//const controls = new DragControls( dragableObjects, tb.camera, renderer.domElement );
+//controls.activate();
+
 
 const distanceContainer = document.getElementById('distance');
 

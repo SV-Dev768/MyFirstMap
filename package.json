@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "express": "^4.18.2",
+    "three": "^0.161.0",
     "threebox-plugin": "^2.2.7"
   },
   "scripts": {
@@ -19,5 +20,8 @@
   "bugs": {
     "url": "https://github.com/alexhalcazar/MyFirstMap/issues"
   },
-  "homepage": "https://github.com/alexhalcazar/MyFirstMap#readme"
+  "homepage": "https://github.com/alexhalcazar/MyFirstMap#readme",
+  "devDependencies": {
+    "vite": "^5.1.3"
+  }
 }
