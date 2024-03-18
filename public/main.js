@@ -53,6 +53,119 @@ mapboxgl.accessToken =
                     coordinates: []
                 }
             };
+			
+			class BoxCustomLayer {
+				type = 'custom';
+				renderingMode = '3d';
+
+				constructor(id) {
+					this.id = id;
+				}
+
+				async onAdd(map, gl) {
+					//this.camera = new THREE.PerspectiveCamera(28, window.innerWidth / window.innerHeight, 0.1, 1e6);
+					// this.camera = new THREE.Camera();
+
+					//const centerLngLat = map.getCenter();
+					//this.center = MercatorCoordinate.fromLngLat(centerLngLat, 0);
+					//const {x, y, z} = this.center;
+					//	const s = this.center.meterInMercatorCoordinateUnits();
+
+					//const scale = new THREE.Matrix4().makeScale(s, s, -s);
+					//const rotation = new THREE.Matrix4().multiplyMatrices(
+					//		new THREE.Matrix4().makeRotationX(-0.5 * Math.PI),
+					//	new THREE.Matrix4().makeRotationY(Math.PI));
+					
+					//this.cameraTransform = new THREE.Matrix4().multiplyMatrices(scale, rotation).setPosition(x, y, z);
+
+					this.map = map;
+					this.scene = this.makeScene();
+
+					// use the Mapbox GL JS map canvas for three.js
+					this.renderer = new THREE.WebGLRenderer({
+					  canvas: map.getCanvas(),
+					  context: gl,
+					  antialias: true,
+					});
+
+					this.renderer.autoClear = false;
+
+					this.raycaster = new THREE.Raycaster();
+					this.raycaster.near = -1;
+					this.raycaster.far = 1e6;
+				  }
+
+				  makeScene() {
+					const scene = new THREE.Scene();
+					const skyColor = 0xb1e1ff; // light blue
+					const groundColor = 0xb97a20; // brownish orange
+
+					scene.add(new THREE.AmbientLight(0xffffff, 0.25));
+					scene.add(new THREE.HemisphereLight(skyColor, groundColor, 0.25));
+
+					const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+					directionalLight.position.set(-70, -70, 100).normalize();
+					// Directional lights implicitly point at (0, 0, 0).
+					scene.add(directionalLight);
+
+					const group = new THREE.Group();
+					group.name = '$group';
+
+					const geometry = new THREE.BoxGeometry( 100, 100, 100 );
+					geometry.translate(0, 50, 0);
+					const material = new THREE.MeshPhongMaterial({
+					  color: 0xff0000,
+					});
+					const cube = new THREE.Mesh( geometry, material );
+
+					group.add(cube);
+					scene.add(group);
+
+					return scene;
+				  }
+
+				  //render(gl, matrix) {
+					//this.camera.projectionMatrix = new THREE.Matrix4()
+					//  .fromArray(matrix)
+					//  .multiply(this.cameraTransform);
+					//this.renderer.state.reset();
+					//this.renderer.render(this.scene, this.camera);
+				  //}
+
+				  raycast(point, isClick) {
+					var mouse = new THREE.Vector2();
+					 // // scale mouse pixel position to a percentage of the screen's width and height
+					//mouse.x = ( point.x / this.map.transform.width ) * 2 - 1;
+					//mouse.y = 1 - ( point.y / this.map.transform.height ) * 2;
+					
+					 mouse.x = (point.x / map.getCanvas().width) * 2 - 1;
+					 mouse.y = -(point.y / map.getCanvas().height) * 2 + 1;
+					
+					//const camInverseProjection = new THREE.Matrix4().getInverse(this.camera.projectionMatrix);
+					//const cameraPosition = new THREE.Vector3().applyMatrix4(camInverseProjection);
+					//const mousePosition = new THREE.Vector3(mouse.x, mouse.y, 1).applyMatrix4(camInverseProjection);
+					//const viewDirection = mousePosition.clone().sub(cameraPosition).normalize();    
+
+					//this.raycaster.set(cameraPosition, viewDirection);
+					
+					this.raycaster.setFromCamera(mouse, tb.camera, 0, 50);
+					this.raycaster.setFromCamera(mouse, tb.camera, 0, 1000);
+					
+					// calculate objects intersecting the picking ray
+					var intersects = this.raycaster.intersectObjects(this.scene.children, true);
+					$('#info').empty();
+					if (intersects.length) {
+					  for(let i = 0; i < intersects.length; ++i) {
+						$('#info').append(' ' + JSON.stringify(intersects[i].distance));
+						isClick && console.log(intersects[i]);
+					  }
+					  
+					  isClick && $('#info').append(';');
+					}
+				  }
+				}
+
+			let boxLayer = new BoxCustomLayer('box');
 
             map.on('style.load', () => {
                 map.setFog({}); // Set the default atmosphere style
@@ -268,6 +381,8 @@ mapboxgl.accessToken =
 				
 				//What happens when the user clicks with their mouse?
                 map.on('click', (e) => {
+					boxLayer.raycast(e.point, true);
+					
                     if (ruler) {
                         const features = map.queryRenderedFeatures(e.point, {
                             layers: ['measure-points']
@@ -334,30 +449,30 @@ mapboxgl.accessToken =
                     }
                 });
 				
-				var raycaster = new THREE.Raycaster();
-				var mouse = new THREE.Vector2();
+				// var raycaster = new THREE.Raycaster();
+				// var mouse = new THREE.Vector2();
 				
 				// Assuming you have a Mapbox GL JS map instance
-				map.on('click', function (event) {
+				// map.on('click', function (event) {
 					// Convert mouse coordinates to normalized device coordinates
-					mouse.x = (event.point.x / map.getCanvas().width) * 2 - 1;
-					mouse.y = -(event.point.y / map.getCanvas().height) * 2 + 1;
+					// mouse.x = (event.point.x / map.getCanvas().width) * 2 - 1;
+					// mouse.y = -(event.point.y / map.getCanvas().height) * 2 + 1;
 
-					console.log(mouse.x, mouse.y);
+					// console.log(mouse.x, mouse.y);
 					
 					// Set up the raycaster
 					//raycaster.setFromCamera(mouse, tb.camera, 0, 50);
-					raycaster.setFromCamera(mouse, tb.camera, 0, 1000);
+					// raycaster.setFromCamera(mouse, tb.camera, 0, 1000);
 
 					// Check for intersections
-					var intersects = raycaster.intersectObject(drone2, true); // Assuming 'drone2' is your 3D model
+					// var intersects = raycaster.intersectObject(drone2, true); // Assuming 'drone2' is your 3D model
 					//var intersects = raycaster.intersectObject(drone2);
 
-					if (intersects.length > 0) {
+					// if (intersects.length > 0) {
 						// Intersection detected, perform actions
-						console.log('Intersection with 3D model:', intersects[0]);
-					}
-				});
+						// console.log('Intersection with 3D model:', intersects[0]);
+					// }
+				// });
             });
 
             // custom function
@@ -366,6 +481,8 @@ mapboxgl.accessToken =
             }
 
             map.on('mousemove', (e) => {
+				boxLayer.raycast(e.point, false);
+				
                 const features = map.queryRenderedFeatures(e.point, {
                     layers: ['measure-points']
                 });
@@ -463,6 +580,10 @@ mapboxgl.accessToken =
                     map.easeTo({ center, duration: 1000, easing: (n) => n });
                 }
             }
+			
+			map.on('load', () => {
+			  map.addLayer(boxLayer);
+			});
 
             // Pause spinning on interaction
             map.on('mousedown', () => {
